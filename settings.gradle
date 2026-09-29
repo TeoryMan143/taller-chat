@@ -1,0 +1,3 @@
+rootProject.name = 'taller-chat'
+include 'common'
+include 'server'

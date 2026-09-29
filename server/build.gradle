@@ -1,0 +1,22 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'comp1.chat.server.ServerMain'
+}
+
+group = 'comp1.chat.server'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':common')
+}
+
+test {
+    useJUnitPlatform()
+}

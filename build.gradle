@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+}
+
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    dependencies {
+        // Source: https://mvnrepository.com/artifact/com.zeroc/ice
+        implementation 'com.zeroc:ice:3.7.11'
+        testImplementation platform('org.junit:junit-bom:6.0.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+}
