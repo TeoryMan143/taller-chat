@@ -1,51 +1,41 @@
-module Chat {
-    struct ChatMessage {
-        long id;
-        string sender;
-        string text;
-        string timestamp;
-    };
-
-    sequence<ChatMessage> MessageSeq;
-    sequence<string> UserSeq;
+module ChatApp {
 
     exception ChatException {
         string reason;
     };
 
-    sequence<byte> DataSeq;
-
-    struct ChunkMetadata {
-        string id;
-        string fileName;
-        int totalSize;
-        int chunkIndex;
-        int totalChunks;
+    exception NicknameInUseException extends ChatException {
     };
 
-    struct FileChunk {
-        ChunkMetadata meta;
-        DataSeq data;
+    exception UserNotFoundException extends ChatException {
     };
 
-    exception TransferException {
-        string reason;
+    sequence<string> StringSeq;
+
+    interface ClientCallback {
+        void onPrivateMessage(string from, string text, string timestamp);
+        void onRoomMessage(string room, string from, string text, string timestamp);
+        void onPresenceChanged(string nickname, bool online);
     };
 
+    //Aqui salen los RFs
     interface ChatRoom {
-        void login(string nickname) throws ChatException;
-        void createGroup(string groupCode, string nickname);
-        void joinGroup(string code) throws ChatException;
-        void sendDirectMessage(string from, string to, string message) throws ChatException;
-        void sendGroupMessage(string nickname, string groupCode, string message) throws ChatException;
-        idempotent MessageSeq getPendingMessages(string nickname, string groupCode, long lastMessageId);
-        idempotent UserSeq getOnlineUsers();
-        idempotent UserSeq getGroupUsers(string groupCode);
-        void quitGroup(string nickname, string groupCode);
-        void logout(string nickname);
 
-        // files
-        void sendDirectFileChunk(string from, string to, FileChunk chunk);
-        void sendGroupFileChunk(string nickname, string groupCode, FileChunk chunk);
+        //RF1: sesion y presencia, devuelve los usuarios ya conectados
+        StringSeq login(string nickname, ClientCallback* callback)
+            throws NicknameInUseException, ChatException;
+        void logout(string nickname);
+        idempotent StringSeq getOnlineUsers();
+
+        //RF2: mensajeria privada
+        void sendPrivateMessage(string from, string to, string text)
+            throws UserNotFoundException, ChatException;
+
+        //RF3: salas
+        void createRoom(string nickname, string room) throws ChatException;
+        idempotent StringSeq listRooms();
+        void joinRoom(string nickname, string room) throws ChatException;
+        void leaveRoom(string nickname, string room) throws ChatException;
+        void sendRoomMessage(string nickname, string room, string text) throws ChatException;
     };
 };
