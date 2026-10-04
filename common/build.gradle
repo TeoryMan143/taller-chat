@@ -2,14 +2,6 @@ plugins {
     id 'java-library'
 }
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    api 'com.zeroc:ice:3.7.11'
-}
-
 tasks.register('slice2java', Exec) {
     def srcDir = file("src/main/slice")
     def outDir = layout.buildDirectory.dir("generated/slice").get().asFile
