@@ -225,6 +225,104 @@ public class ChatRoomImp implements ChatRoom {
         dispatch(recipient, cb -> cb.onPrivateMessageAsync(sender.nickname, cleanText, timestamp));
     }
 
+    @Override
+    public void sendFileChunk(
+            String from,
+            String to,
+            ChatApp.FileMetadata metadata,
+            int chunkIndex,
+            byte[] data,
+            Current current)
+            throws UserNotFoundException, ChatException {
+
+        Session sender = requireSession(from, current);
+
+        validateFileChunk(metadata, chunkIndex, data);
+
+        if (to == null || to.trim().isEmpty()) {
+            throw new ChatException("Recipient cannot be empty");
+        }
+
+        String targetNick = to.trim();
+
+        if (targetNick.equals(sender.nickname)) {
+            throw new ChatException("You cannot send a file to yourself");
+        }
+
+        Session recipient = sessions.get(targetNick);
+
+        if (recipient == null) {
+            throw new UserNotFoundException(
+                    "User '" + targetNick + "' does not exist or is disconnected"
+            );
+        }
+
+        dispatch(
+                recipient,
+                cb -> cb.onFileChunkAsync(
+                        sender.nickname,
+                        targetNick,
+                        metadata,
+                        chunkIndex,
+                        data
+                )
+        );
+    }
+
+    @Override
+    public void sendRoomFileChunk(
+            String from,
+            String room,
+            ChatApp.FileMetadata metadata,
+            int chunkIndex,
+            byte[] data,
+            Current current)
+            throws ChatException {
+
+        Session sender = requireSession(from, current);
+
+        validateFileChunk(metadata, chunkIndex, data);
+
+        String roomName = requireValidName(
+                room,
+                ROOM_PATTERN,
+                "Invalid room name"
+        );
+
+        Set<String> members = getExistingRoom(roomName);
+
+        if (!members.contains(sender.nickname)) {
+            throw new ChatException(
+                    "You are not a member of room '" + roomName + "'"
+            );
+        }
+
+        for (String memberNick : members) {
+
+            // No reenviar al emisor
+            if (memberNick.equals(sender.nickname)) {
+                continue;
+            }
+
+            Session target = sessions.get(memberNick);
+
+            if (target != null) {
+                dispatch(
+                        target,
+                        cb -> cb.onFileChunkAsync(
+                                sender.nickname,
+                                roomName,
+                                metadata,
+                                chunkIndex,
+                                data
+                        )
+                );
+            }
+        }
+    }
+
+
+
     //RF3
     public void createRoom(String nickname, String room, Current current) throws ChatException {
         Session sender = requireSession(nickname, current);
@@ -286,6 +384,40 @@ public class ChatRoomImp implements ChatRoom {
             if (target != null) {
                 dispatch(target, cb -> cb.onRoomMessageAsync(roomName, sender.nickname, cleanText, timestamp));
             }
+        }
+    }
+
+    private static void validateFileChunk(
+            ChatApp.FileMetadata metadata,
+            int chunkIndex,
+            byte[] data) throws ChatException {
+
+        if (metadata == null) {
+            throw new ChatException("File metadata cannot be null");
+        }
+
+        if (metadata.fileId == null || metadata.fileId.trim().isEmpty()) {
+            throw new ChatException("File ID cannot be empty");
+        }
+
+        if (metadata.fileName == null || metadata.fileName.trim().isEmpty()) {
+            throw new ChatException("File name cannot be empty");
+        }
+
+        if (metadata.totalSize < 0) {
+            throw new ChatException("Invalid file size");
+        }
+
+        if (metadata.totalChunks <= 0) {
+            throw new ChatException("Invalid total number of chunks");
+        }
+
+        if (chunkIndex < 0 || chunkIndex >= metadata.totalChunks) {
+            throw new ChatException("Invalid chunk index");
+        }
+
+        if (data == null) {
+            throw new ChatException("File chunk cannot be null");
         }
     }
 }
