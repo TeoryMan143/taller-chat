@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 
 public class ChatRoomImp implements ChatRoom {
 
+    private static final int IDLE_TIMEOUT_SECONDS = 300;
     private static final Pattern NICK_PATTERN = Pattern.compile("^[A-Za-z0-9_.-]{1,20}$");
     private static final Pattern ROOM_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,20}$");
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -121,10 +122,30 @@ public class ChatRoomImp implements ChatRoom {
             CompletableFuture<Void> future = action.apply(target.callback);
             future.whenComplete((res, ex) -> {
                 if (ex != null) {
-                    removeSession(target);
+                    handleCallbackFailure(target, ex);
                 }
             });
         } catch (Exception e) {
+            handleCallbackFailure(target, e);
+        }
+    }
+
+    // Un callback fallido no implica que el cliente se haya ido: si la conexion TCP sigue abierta
+    // se conserva la sesion (el closeCallback de la conexion ya limpia cuando realmente se cae).
+    private void handleCallbackFailure(Session target, Throwable ex) {
+        boolean connectionDead;
+        try {
+            target.connection.throwException();
+            connectionDead = false;
+        } catch (Exception closed) {
+            connectionDead = true;
+        }
+
+        System.err.println("[ICE - SERVER] Callback to '" + target.nickname + "' failed ("
+                + (connectionDead ? "connection closed, dropping session" : "connection still open, keeping session")
+                + "): " + ex);
+
+        if (connectionDead) {
             removeSession(target);
         }
     }
@@ -202,9 +223,14 @@ public class ChatRoomImp implements ChatRoom {
             throw new NicknameInUseException("Nickname '" + cleanNick + "' is already in use");
         }
 
-        current.con.setACM(OptionalInt.of(30), Optional.of(ACMClose.CloseOnIdleForceful),
-                Optional.of(ACMHeartbeat.HeartbeatOff));
-        current.con.setCloseCallback(con -> removeSession(newSession));
+        // El cliente envia heartbeats cada ~15s, asi que una conexion solo queda inactiva
+        // por 120s si el cliente realmente murio (red caida, proceso colgado).
+        current.con.setACM(OptionalInt.of(IDLE_TIMEOUT_SECONDS), Optional.of(ACMClose.CloseOnIdleForceful),
+                Optional.of(ACMHeartbeat.HeartbeatAlways));
+        current.con.setCloseCallback(con -> {
+            System.out.println("[ICE - SERVER] Connection closed for '" + cleanNick + "': " + con);
+            removeSession(newSession);
+        });
 
         System.out.println("[ICE - SERVER] User connected: " + cleanNick);
         broadcastPresence(cleanNick, true);

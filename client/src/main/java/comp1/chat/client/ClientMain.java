@@ -1,9 +1,13 @@
 package comp1.chat.client;
 
+import ChatApp.ChatException;
 import ChatApp.ChatRoomPrx;
 import ChatApp.ClientCallbackPrx;
 import ChatApp.VoiceEndpoint;
+import com.zeroc.Ice.ACMClose;
+import com.zeroc.Ice.ACMHeartbeat;
 import com.zeroc.Ice.Communicator;
+import com.zeroc.Ice.Connection;
 import com.zeroc.Ice.ObjectAdapter;
 import com.zeroc.Ice.Util;
 import comp1.chat.client.audio.VoiceCallManager;
@@ -13,11 +17,16 @@ import comp1.chat.client.transfer.FileTransferManager;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
 
 public class ClientMain {
 
     private static String currentNickname = null;
     private static String currentActiveRoom = null;
+    private static final Set<String> joinedRooms = new HashSet<>();
 
     public static void main(String[] args) {
         String host = "127.0.0.1";
@@ -63,7 +72,13 @@ public class ClientMain {
 
             ClientCallbackPrx callbackPrx = ClientCallbackPrx.uncheckedCast(adapter.addWithUUID(callbackImpl));
             adapter.activate();
-            service.ice_getConnection().setAdapter(adapter);
+            Connection connection = service.ice_getConnection();
+            connection.setAdapter(adapter);
+            connection.setCloseCallback(con -> System.err.printf(
+                    "%n[CLIENTE] La conexion con el servidor se cerro (%s)%n> ", con));
+            // Heartbeats cada ~15s para que el servidor no cierre la conexion por inactividad
+            connection.setACM(OptionalInt.of(30), Optional.of(ACMClose.CloseOff),
+                    Optional.of(ACMHeartbeat.HeartbeatAlways));
 
             System.out.printf("[CLIENTE] Endpoint UDP local para streaming de voz: %s:%d%n",
                     callManager.getLocalIp(), callManager.getLocalPort());
@@ -100,6 +115,9 @@ public class ClientMain {
 
                 try {
                     handleCommand(line, service, callbackPrx, callManager, fileManager);
+                } catch (ChatException e) {
+                    // Las excepciones Slice no llenan getMessage(); el motivo viene en 'reason'
+                    System.err.println("[ERROR] " + e.reason);
                 } catch (Exception e) {
                     System.err.println("[ERROR] " + e.getMessage());
                 }
@@ -153,6 +171,7 @@ public class ClientMain {
                 System.out.println("[SESION CERRADA] Has cerrado sesion.");
                 currentNickname = null;
                 currentActiveRoom = null;
+                joinedRooms.clear();
                 break;
             }
 
@@ -195,6 +214,7 @@ public class ClientMain {
                 }
                 String room = parts[1].trim();
                 service.createRoom(currentNickname, room);
+                joinedRooms.add(room);
                 currentActiveRoom = room;
                 System.out.printf("[SALA] Sala '%s' creada exitosamente y seleccionada como activa.%n", room);
                 break;
@@ -208,6 +228,7 @@ public class ClientMain {
                 }
                 String room = parts[1].trim();
                 service.joinRoom(currentNickname, room);
+                joinedRooms.add(room);
                 currentActiveRoom = room;
                 System.out.printf("[SALA] Te has unido a la sala '%s'. (Sala activa)%n", room);
                 break;
@@ -221,6 +242,7 @@ public class ClientMain {
                     return;
                 }
                 service.leaveRoom(currentNickname, room);
+                joinedRooms.remove(room);
                 if (room.equals(currentActiveRoom)) {
                     currentActiveRoom = null;
                 }
@@ -234,7 +256,8 @@ public class ClientMain {
                 String targetRoom;
                 String message;
 
-                if (parts.length >= 3 && !parts[1].startsWith("/")) {
+                // Si el primer token es una sala a la que pertenezco, es el destino; si no, todo es texto
+                if (parts.length >= 3 && (joinedRooms.contains(parts[1]) || currentActiveRoom == null)) {
                     targetRoom = parts[1].trim();
                     message = parts[2].trim();
                 } else if (parts.length >= 2 && currentActiveRoom != null) {
@@ -413,6 +436,7 @@ public class ClientMain {
                 System.out.println("  En llamada con: " + (callManager.getCurrentPeer() != null ? callManager.getCurrentPeer() : "N/A"));
                 System.out.println("  Sala de voz  : " + (callManager.getCurrentVoiceRoom() != null ? callManager.getCurrentVoiceRoom() : "N/A"));
                 System.out.println("  Microfono    : " + (callManager.isMuted() ? "SILENCIADO (MUTED)" : "ACTIVO"));
+                System.out.println("  Fuentes audio: " + callManager.getActiveSourceCount() + " (participantes que te estan transmitiendo)");
                 System.out.println("  Endpoint UDP : " + callManager.getLocalIp() + ":" + callManager.getLocalPort());
                 System.out.println("----------------------------------------------");
                 break;

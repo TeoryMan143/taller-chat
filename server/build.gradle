@@ -17,6 +17,28 @@ dependencies {
     implementation project(':common')
 }
 
+// Jar ejecutable autocontenido: java -jar chat-server.jar
+// Incluye el runtime de Ice y las clases de :common, asi solo hace falta un JRE 17 en la otra maquina.
+jar {
+    archiveFileName = 'chat-server.jar'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass,
+                'Implementation-Title': 'Taller Chat - Servidor',
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'Universidad Icesi - Computacion en Internet I',
+                'Created-By': "JDK ${System.getProperty('java.version')}"
+        )
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}
+
 test {
     useJUnitPlatform()
 }

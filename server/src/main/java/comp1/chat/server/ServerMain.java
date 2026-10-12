@@ -10,7 +10,13 @@ public class ServerMain {
     public static void main(String[] args) {
         int exitCode = 0;
 
-        try (Communicator com = Util.initialize(args)) {
+        com.zeroc.Ice.InitializationData initData = new com.zeroc.Ice.InitializationData();
+        initData.properties = Util.createProperties(args);
+        // Diagnostico: Ice imprime por que se cierra cada conexion
+        initData.properties.setProperty("Ice.Warn.Connections", "1");
+        initData.properties.setProperty("Ice.Trace.Network", "1");
+
+        try (Communicator com = Util.initialize(initData)) {
             ObjectAdapter adapter = com.createObjectAdapterWithEndpoints("ChatAdapter", "default -p 10000");
             ChatRoomImp serv = new ChatRoomImp();
 

@@ -120,6 +120,10 @@ public class VoiceCallManager {
         return ringingCallerPort;
     }
 
+    public int getActiveSourceCount() {
+        return receiver.getActiveSourceCount();
+    }
+
     public boolean isMuted() {
         return sender.isMuted();
     }

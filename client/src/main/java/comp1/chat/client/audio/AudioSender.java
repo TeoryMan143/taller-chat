@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -77,15 +78,23 @@ public class AudioSender implements Runnable {
         }
 
         byte[] buffer = new byte[AudioConfig.FRAME_SIZE];
+        byte[] packetBuf = new byte[AudioConfig.MAX_PACKET_SIZE];
+        int seq = 0;
 
         while (running && !socket.isClosed()) {
             if (micLine != null && micLine.isOpen()) {
                 int bytesRead = micLine.read(buffer, 0, buffer.length);
 
                 if (bytesRead > 0 && !muted && !targets.isEmpty()) {
+                    // Mismo frame (y misma secuencia) para todos los destinos de la malla.
+                    // La secuencia solo avanza al enviar, asi mute/unmute no genera huecos.
+                    ByteBuffer.wrap(packetBuf).putInt(0, seq++);
+                    System.arraycopy(buffer, 0, packetBuf, AudioConfig.HEADER_SIZE, bytesRead);
+
                     for (InetSocketAddress target : targets) {
                         try {
-                            DatagramPacket packet = new DatagramPacket(buffer, bytesRead, target);
+                            DatagramPacket packet = new DatagramPacket(
+                                    packetBuf, AudioConfig.HEADER_SIZE + bytesRead, target);
                             socket.send(packet);
                         } catch (IOException e) {
                             if (running) {

@@ -31,6 +31,14 @@ subprojects {
     }
 }
 
+// Genera build/dist/chat-server.jar y build/dist/chat-client.jar para copiarlos a otras maquinas
+tasks.register('packageJars', Copy) {
+    group = 'distribution'
+    description = 'Builds the standalone server and client jars into build/dist'
+    from(project(':server').tasks.named('jar'), project(':client').tasks.named('jar'))
+    into layout.buildDirectory.dir('dist')
+}
+
 tasks.register('runServer') {
     group = 'application'
     description = 'Runs the chat server'
