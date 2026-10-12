@@ -30,3 +30,15 @@ subprojects {
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 }
+
+tasks.register('runServer') {
+    group = 'application'
+    description = 'Runs the chat server'
+    dependsOn ':server:run'
+}
+
+tasks.register('runClient') {
+    group = 'application'
+    description = 'Runs the chat client'
+    dependsOn ':client:run'
+}

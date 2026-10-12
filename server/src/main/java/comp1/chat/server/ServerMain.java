@@ -11,7 +11,7 @@ public class ServerMain {
         int exitCode = 0;
 
         try (Communicator com = Util.initialize(args)) {
-            ObjectAdapter adapter = com.createObjectAdapterWithEndpoints("ChatAdapter", "default -h 127.0.0.1 -p 10000");
+            ObjectAdapter adapter = com.createObjectAdapterWithEndpoints("ChatAdapter", "default -p 10000");
             ChatRoomImp serv = new ChatRoomImp();
 
             adapter.add(serv, Util.stringToIdentity("ChatService"));

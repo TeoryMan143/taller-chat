@@ -1,0 +1,26 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'comp1.chat.client.ClientMain'
+}
+
+group = 'comp1.chat.client'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':common')
+}
+
+run {
+    standardInput = System.in
+}
+
+test {
+    useJUnitPlatform()
+}
