@@ -7,6 +7,15 @@
 
 ---
 
+# **Autores:**
+-  Daniel Montenegro / A00409572
+-  Jose Daniel Cordoba / A00407856
+-  Santiago Gomez Lopez / A00403929
+-  Jonathan David Cortes Castaño / A00411095
+
+
+---
+
 ## Contenido
 1. [Descripción y arquitectura](#1-descripción-del-proyecto-y-arquitectura-híbrida)
 2. [Estructura del proyecto](#2-estructura-multimodular-del-proyecto-gradle)
